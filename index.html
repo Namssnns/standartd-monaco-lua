@@ -9,6 +9,7 @@
             margin: 0;
             padding: 0;
             height: 100vh;
+            background-color: #0F0F10;
         }
 
         #editor {
@@ -150,7 +151,7 @@
             });
             
             editor = monaco.editor.create(document.getElementById('editor'), {
-                value: '-- Start coding in Lua!\nfunction hello()\n    print("Hello, World!")\nend\n\nhello()',
+                value: '',
                 language: 'lua',
                 theme: 'vs-dark',
                 automaticLayout: true,
@@ -260,6 +261,7 @@
                 editor.trigger('keyboard', 'editor.action.gotoLine', null);
             };
 
+            console.log('Monaco Editor with ChromiumWebBrowser compatibility loaded');
         });
     </script>
 </body>
