@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lua Monaco Editor</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+        }
+
+        #editor {
+            width: 100%;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="editor"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+    <script>
+        let editor;
+
+        // Lua language configuration
+        const luaLanguageConfig = {
+            keywords: [
+                'and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for',
+                'function', 'goto', 'if', 'in', 'local', 'nil', 'not', 'or',
+                'repeat', 'return', 'then', 'true', 'until', 'while'
+            ],
+            
+            builtins: [
+                'assert', 'collectgarbage', 'dofile', 'error', 'getmetatable', 
+                'ipairs', 'load', 'loadfile', 'next', 'pairs', 'pcall', 'print',
+                'rawequal', 'rawget', 'rawlen', 'rawset', 'require', 'select',
+                'setmetatable', 'tonumber', 'tostring', 'type', 'xpcall',
+                'string.byte', 'string.char', 'string.find', 'string.format', 
+                'string.gmatch', 'string.gsub', 'string.len', 'string.lower', 
+                'string.match', 'string.rep', 'string.reverse', 'string.sub', 
+                'string.upper', 'table.concat', 'table.insert', 'table.remove', 
+                'table.sort', 'math.abs', 'math.acos', 'math.asin', 'math.atan', 
+                'math.ceil', 'math.cos', 'math.deg', 'math.exp', 'math.floor', 
+                'math.log', 'math.max', 'math.min', 'math.pi', 'math.pow', 
+                'math.rad', 'math.random', 'math.sin', 'math.sqrt', 'math.tan',
+                'io.close', 'io.flush', 'io.input', 'io.lines', 'io.open',
+                'io.output', 'io.read', 'io.write', 'os.clock', 'os.date', 
+                'os.time', 'coroutine.create', 'coroutine.resume', 'coroutine.yield'
+            ],
+            
+            operators: [
+                '=', '>', '<', '!', '~', '?', ':',
+                '==', '<=', '>=', '!=', '&&', '||', '++', '--',
+                '+', '-', '*', '/', '&', '|', '^', '%', '<<',
+                '>>', '>>>', '+=', '-=', '*=', '/=', '&=', '|=',
+                '^=', '%=', '<<=', '>>=', '>>>='
+            ],
+            
+            symbols: /[=><!~?:&|+\-*\/\^%]+/,
+            
+            tokenizer: {
+                root: [
+                    [/[a-zA-Z_]\w*/, {
+                        cases: {
+                            '@keywords': 'keyword',
+                            '@builtins': 'predefined',
+                            '@default': 'identifier'
+                        }
+                    }],
+                    [/--\[\[/, 'comment', '@comment'],
+                    [/--.*$/, 'comment'],
+                    [/"([^"\\]|\\.)*$/, 'string.invalid'],
+                    [/'([^'\\]|\\.)*$/, 'string.invalid'],
+                    [/"/, 'string', '@string_double'],
+                    [/'/, 'string', '@string_single'],
+                    [/\d*\.\d+([eE][\-+]?\d+)?/, 'number.float'],
+                    [/0[xX][0-9a-fA-F]+/, 'number.hex'],
+                    [/\d+/, 'number'],
+                    [/[;,.]/, 'delimiter'],
+                    [/[(){}[\]]/, 'bracket'],
+                    [/@symbols/, {
+                        cases: {
+                            '@operators': 'operator',
+                            '@default': ''
+                        }
+                    }],
+                ],
+                comment: [
+                    [/[^\]]+/, 'comment'],
+                    [/\]\]/, 'comment', '@pop'],
+                    [/[\]]/, 'comment']
+                ],
+                string_double: [
+                    [/[^\\"]+/, 'string'],
+                    [/\\./, 'string.escape'],
+                    [/"/, 'string', '@pop']
+                ],
+                string_single: [
+                    [/[^\\']+/, 'string'],
+                    [/\\./, 'string.escape'],
+                    [/'/, 'string', '@pop']
+                ]
+            }
+        };
+
+        require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
+
+        require(['vs/editor/editor.main'], function () {
+            monaco.languages.register({ id: 'lua' });
+            
+            monaco.languages.setLanguageConfiguration('lua', {
+                comments: {
+                    lineComment: '--',
+                    blockComment: ['--[[', ']]']
+                },
+                brackets: [
+                    ['{', '}'],
+                    ['[', ']'],
+                    ['(', ')']
+                ],
+                autoClosingPairs: [
+                    { open: '{', close: '}' },
+                    { open: '[', close: ']' },
+                    { open: '(', close: ')' },
+                    { open: '"', close: '"' },
+                    { open: "'", close: "'" }
+                ]
+            });
+            
+            monaco.languages.setMonarchTokensProvider('lua', luaLanguageConfig);
+            
+            monaco.languages.registerCompletionItemProvider('lua', {
+                provideCompletionItems: function(model, position) {
+                    const suggestions = [
+                        ...luaLanguageConfig.keywords.map(keyword => ({
+                            label: keyword,
+                            kind: monaco.languages.CompletionItemKind.Keyword,
+                            insertText: keyword
+                        })),
+                        ...luaLanguageConfig.builtins.map(builtin => ({
+                            label: builtin,
+                            kind: monaco.languages.CompletionItemKind.Function,
+                            insertText: builtin
+                        }))
+                    ];
+                    return { suggestions: suggestions };
+                }
+            });
+            
+            editor = monaco.editor.create(document.getElementById('editor'), {
+                value: '-- Start coding in Lua!\nfunction hello()\n    print("Hello, World!")\nend\n\nhello()',
+                language: 'lua',
+                theme: 'vs-dark',
+                automaticLayout: true,
+                fontSize: 14,
+                minimap: { enabled: true },
+                inlayHints: { enabled: true },
+                scrollBeyondLastLine: false,
+                wordWrap: 'on',
+                formatOnPaste: true,
+                formatOnType: true
+            });
+
+            // Expose ChromiumWebBrowser-compatible functions to window object
+            window.setText = function(text) {
+                editor.setValue(text);
+            };
+
+            window.getText = function() {
+                return editor.getValue();
+            };
+
+            window.updateOptions = function(options) {
+                editor.updateOptions(options);
+            };
+
+            window.getEditor = function() {
+                return editor;
+            };
+
+            // Additional utility functions
+            window.insertText = function(text, position) {
+                if (position) {
+                    editor.executeEdits('insertText', [{
+                        range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+                        text: text
+                    }]);
+                } else {
+                    const position = editor.getPosition();
+                    editor.executeEdits('insertText', [{
+                        range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+                        text: text
+                    }]);
+                }
+            };
+
+            window.setTheme = function(theme) {
+                monaco.editor.setTheme(theme);
+            };
+
+            window.focus = function() {
+                editor.focus();
+            };
+
+            window.getPosition = function() {
+                return editor.getPosition();
+            };
+
+            window.setPosition = function(lineNumber, column) {
+                editor.setPosition({ lineNumber: lineNumber, column: column });
+            };
+
+            window.getSelection = function() {
+                return editor.getSelection();
+            };
+
+            window.setSelection = function(selection) {
+                editor.setSelection(selection);
+            };
+
+            window.undo = function() {
+                editor.trigger('keyboard', 'undo', null);
+            };
+
+            window.redo = function() {
+                editor.trigger('keyboard', 'redo', null);
+            };
+
+            window.selectAll = function() {
+                editor.trigger('keyboard', 'editor.action.selectAll', null);
+            };
+
+            window.copy = function() {
+                editor.trigger('keyboard', 'editor.action.clipboardCopyAction', null);
+            };
+
+            window.cut = function() {
+                editor.trigger('keyboard', 'editor.action.clipboardCutAction', null);
+            };
+
+            window.paste = function() {
+                editor.trigger('keyboard', 'editor.action.clipboardPasteAction', null);
+            };
+
+            window.find = function(searchString) {
+                editor.trigger('keyboard', 'actions.find', null);
+            };
+
+            window.replace = function() {
+                editor.trigger('keyboard', 'editor.action.startFindReplaceAction', null);
+            };
+
+            window.formatDocument = function() {
+                editor.trigger('keyboard', 'editor.action.formatDocument', null);
+            };
+
+            window.goToLine = function(lineNumber) {
+                editor.trigger('keyboard', 'editor.action.gotoLine', null);
+            };
+
+        });
+    </script>
+</body>
+</html>
