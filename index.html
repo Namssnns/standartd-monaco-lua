@@ -2222,15 +2222,44 @@
 <body>
     <div id="container" style="width:100%;height:100%;"></div>
     
-    <script src="vs/loader.js"></script>
-    <script type="text/javascript">
-
-
-        let editor;
-
-
-       
-            // Define the custom theme
+ <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs/loader.js"></script>
+    <script>
+        // Configure Monaco loader
+        require.config({ 
+            paths: { 
+                'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs'
+            }
+        });
+        
+        // Set up a fake AMD module for luaparse to prevent errors
+        const defineFn = window.define;
+        window.define = undefined;
+        
+        // Load the luaparse library
+        const luaparseScript = document.createElement('script');
+        luaparseScript.src = 'https://cdn.jsdelivr.net/npm/luaparse@0.2.1/luaparse.js';
+        document.head.appendChild(luaparseScript);
+        
+        // Restore define function
+        luaparseScript.onload = function() {
+            window.define = defineFn;
+            
+            // Now load Monaco editor
+            loadMonaco();
+        };
+        
+        function loadMonaco() {
+            document.getElementById('status').textContent = 'Initializing editor...';
+            
+            require(['vs/editor/editor.main'], function() {
+                initializeEditor();
+            });
+        }
+        
+        function initializeEditor() {
+            document.getElementById('status').textContent = 'Ready';
+            
+            // Define custom theme
             monaco.editor.defineTheme('customDark', {
                 base: 'vs-dark',
                 inherit: true,
@@ -2239,74 +2268,24 @@
                     'editor.background': '#0e0e0f'
                 }
             });
-
-            // Define the net-theme-dark theme
-            monaco.editor.defineTheme('net-theme-dark', {
-                base: 'vs-dark',
-                inherit: true,
-                colors: {
-                    "editor.background": '#141414',
-                },
-                rules: [{
-                        token: 'global',
-                        foreground: '6699cc',
-                        fontStyle: "bold"
-                    },
-                    {
-                        token: 'keyword',
-                        foreground: 'cc99cc',
-                        fontStyle: "bold"
-                    },
-                    {
-                        token: 'comment',
-                        foreground: '999999'
-                    },
-                    {
-                        token: 'number',
-                        foreground: 'f99157'
-                    },
-                    {
-                        token: 'string',
-                        foreground: '99CC99'
-                    },
-                    {
-                        token: 'Method',
-                        foreground: 'ffa1dc'
-                    },
-                ]
-            });
-
-            editor = monaco.editor.create(document.getElementById('container'), {
+            
+            // Create editor
+            const editor = monaco.editor.create(document.getElementById('container'), {
                 value: "--[[\n    Made by Salad\n    discord.gg/getsalad\n]]",
                 language: 'lua',
                 theme: "customDark",
-                acceptSuggestionOnEnter: "smart",
-                cursorSmoothCaretAnimation: true,
-                suggestOnTriggerCharacters: true,
-                suggestSelection: "recentlyUsed",
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                fontSize: 14,
+                wordWrap: 'on',
+                lineNumbers: 'on',
+                glyphMargin: true,
                 folding: true,
-                dragAndDrop: true,
-                links: false,
-                minimap: {
-                    enabled: false,
-                },
-                showFoldingControls: "always",
-                smoothScrolling: true,
-                stopRenderingLineAfter: 6500,
-                cursorBlinking: "smooth",
-                cursorSmoothCaretAnimation: true,
-                foldingHighlight: false,
-                fontLigatures: true,
-                formatOnPaste: true,
-                showDeprecated: true,
-                suggest: {
-                    snippetsPreventQuickSuggestions: false,
-                },
-                padding: {
-                    top: 24,
-                }
+                lineDecorationsWidth: 10,
+                lineNumbersMinChars: 3,
+                automaticLayout: true
             });
-
+            
             // Add the requested functions to the window object
             window.setText = function(text) {
                 editor.setValue(text);
@@ -2328,13 +2307,23 @@
             window.insertText = function(text, position) {
                 if (position) {
                     editor.executeEdits('insertText', [{
-                        range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+                        range: new monaco.Range(
+                            position.lineNumber, 
+                            position.column, 
+                            position.lineNumber, 
+                            position.column
+                        ),
                         text: text
                     }]);
                 } else {
-                    const position = editor.getPosition();
+                    const pos = editor.getPosition();
                     editor.executeEdits('insertText', [{
-                        range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+                        range: new monaco.Range(
+                            pos.lineNumber, 
+                            pos.column, 
+                            pos.lineNumber, 
+                            pos.column
+                        ),
                         text: text
                     }]);
                 }
@@ -2344,7 +2333,7 @@
                 monaco.editor.setTheme(theme);
             };
 
-            window.focus = function() {
+            window.focusEditor = function() {
                 editor.focus();
             };
 
@@ -2403,40 +2392,8 @@
             window.goToLine = function(lineNumber) {
                 editor.trigger('keyboard', 'editor.action.gotoLine', null);
             };
-
-            // Original functions
-            window.EnableAutoComplete = function(){
-                editor.updateOptions({
-                    suggestOnTriggerCharacters: true,
-                    acceptSuggestionOnEnter : "smart",
-                    wordBasedSuggestions : true
-                });
-            };
-
-            window.DisableAutoComplete = function(){
-                editor.updateOptions({
-                    suggestOnTriggerCharacters: false,
-                    acceptSuggestionOnEnter : "off",
-                    wordBasedSuggestions : false
-                });
-            };
-
-            window.ShowMinimap = function () {
-                editor.updateOptions({
-                    minimap: {
-                        enabled: true,
-                    }
-                });
-            };
-
-            window.HideMinimap = function () {
-                editor.updateOptions({
-                    minimap: {
-                        enabled: false,
-                    }
-                });
-            };
-
+            
+            // Add Lua-specific functions
             window.enableAntiSkid = function() {
                 document.body.style.filter = "blur(5px)";
                 document.body.addEventListener("mouseover", handleover);
@@ -2456,140 +2413,32 @@
             function handleleave() {
                 document.body.style.filter = "blur(5px)";
             }
-
-            window.GetText = function () {
-                return editor.getValue();
-            };
-
-            window.SetText = function (x) {
-                editor.setValue(x);
-            };
-
-            window.AddIntellisense = function (l, k, d, i) {
-                var t;
-                switch (k) {
-                    case "Class":
-                        t = monaco.languages.CompletionItemKind.Class;
-                        break;
-                    case "Color":
-                        t = monaco.languages.CompletionItemKind.Color;
-                        break;
-                    case "Constructor":
-                        t = monaco.languages.CompletionItemKind.Constructor;
-                        break;
-                    case "Enum":
-                        t = monaco.languages.CompletionItemKind.Enum;
-                        break;
-                    case "Field":
-                        t = monaco.languages.CompletionItemKind.Field;
-                        break;
-                    case "File":
-                        t = monaco.languages.CompletionItemKind.File;
-                        break;
-                    case "Folder":
-                        t = monaco.languages.CompletionItemKind.Folder;
-                        break;
-                    case "Function":
-                        t = monaco.languages.CompletionItemKind.Function;
-                        break;
-                    case "Interface":
-                        t = monaco.languages.CompletionItemKind.Interface;
-                        break;
-                    case "Keyword":
-                        t = monaco.languages.CompletionItemKind.Keyword;
-                        break;
-                    case "Method":
-                        t = monaco.languages.CompletionItemKind.Method;
-                        break;
-                    case "Module":
-                        t = monaco.languages.CompletionItemKind.Module;
-                        break;
-                    case "Property":
-                        t = monaco.languages.CompletionItemKind.Property;
-                        break;
-                    case "Reference":
-                        t = monaco.languages.CompletionItemKind.Reference;
-                        break;
-                    case "Snippet":
-                        t = monaco.languages.CompletionItemKind.Snippet;
-                        break;
-                    case "Text":
-                        t = monaco.languages.CompletionItemKind.Text;
-                        break;
-                    case "Unit":
-                        t = monaco.languages.CompletionItemKind.Unit;
-                        break;
-                    case "Value":
-                        t = monaco.languages.CompletionItemKind.Value;
-                        break;
-                    case "Variable":
-                        t = monaco.languages.CompletionItemKind.Variable;
-                        break;
-                }
-
-
-            };
-
-            window.Refresh = function () {
-                var text = GetText();
-                SetText("");
-                editor.trigger('keyboard', 'type', {
-                    text: text
-                });
-            };
-
-            editor.onDidChangeModelContent(function (e) {
-                try {
-                    this.luaparse.parse(editor.getValue());
-                    monaco.editor.setModelMarkers(editor.getModel(),'luaparse');
-                }
-                catch(Err) {
-                    monaco.editor.setModelMarkers(editor.getModel(),'luaparse',[{
-                        startLineNumber: Err.line,
-                        startColumn: Err.column,
-                        endLineNumber: Err.line,
-                        endColumn: Err.column,
-                        message: Err.message,
-                        severity: 3
-                    }]);
-                }
-            });
-
-            window.onresize = function () {
-                editor.layout();
-            };
-
-            async function load() {
-                var docs = await(await fetch('https://raw.githubusercontent.com/iceycold3/monaco/refs/heads/main/lib.json')).json();
-
-                for (var prop in docs) {
-                    for(var item in docs[prop])
-                    {
-                        const document = docs[prop][item];
-                        AddIntellisense(document.label, document.type, document.description, document.insert);
+            
+            // Set up syntax checking with luaparse
+            if (window.luaparse) {
+                const model = editor.getModel();
+                model.onDidChangeContent(() => {
+                    try {
+                        window.luaparse.parse(model.getValue());
+                        monaco.editor.setModelMarkers(model, 'luaparse', []);
+                    } catch (err) {
+                        monaco.editor.setModelMarkers(model, 'luaparse', [{
+                            severity: monaco.MarkerSeverity.Error,
+                            startLineNumber: err.line,
+                            startColumn: err.column,
+                            endLineNumber: err.line,
+                            endColumn: err.column + 5,
+                            message: err.message
+                        }]);
                     }
-                }
-
-                for (const Key of ["_G", "_VERSION", "Enum", "game", "plugin", "shared", "script", "workspace", "DebuggerManager", "elapsedTime", "LoadLibrary", "PluginManager", "settings", "tick", "time", "typeof", "UserSettings"])
-                    AddIntellisense(Key, "Keyword", Key, Key);
-
-                for (const Key of ["and", "break", "do", "else", "elseif", "end", "false", "for", "function", "if", "in", "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while"])
-                    AddIntellisense(Key, "Variable", Key, Key);
-
-                for (const Key of ["math.abs", "math.acos", "math.asin", "math.atan", "math.atan2", "math.ceil", "math.cos", "math.cosh", "math.deg", "math.exp", "math.floor", "math.fmod", "math.frexp", "math.huge", "math.ldexp", "math.log", "math.max", "math.min", "math.modf", "math.pi", "math.pow", "math.rad", "math.random", "math.randomseed", "math.sin", "math.sinh", "math.sqrt", "math.tan", "math.tanh", "table.concat", "table.foreach", "table.foreachi", "table.sort", "table.insert", "table.remove", "Color3.new", "Instance.new", "BrickColor.new", "Vector3.new", "Vector2.new", "debug.gethook", "debug.getinfo", "debug.getlocal", "debug.getmetatable", "debug.getregistry", "debug.getupvalue", "debug.getuservalue", "debug.sethook", "debug.setlocal", "debug.setmetatable", "debug.setupvalue", "debug.setuservalue", "debug.traceback", "debug.upvalueid", "debug.upvaluejoin", "string.byte", "string.char", "string.dump", "string.find", "string.format", "string.gmatch", "string.gsub", "string.len", "string.lower", "string.match", "string.rep", "string.reverse", "string.sub", "string.upper", "coroutine.create", "coroutine.resume", "coroutine.running", "coroutine.status", "coroutine.wrap", "coroutine.yield"])
-                    AddIntellisense(Key, "Method", Key, Key);
-
-                for (const Key of ["Drawing", "debug", "Instance", "Color3", "Vector3", "Vector2", "BrickColor", "math", "table", "string", "coroutine", "Humanoid", "ClickDetector", "LocalScript", "Model", "ModuleScript", "Mouse", "Part", "Player", "Script", "Tool", "RunService", "UserInputService", "Workspace"])
-                    AddIntellisense(Key, "Class", Key, Key);
-
-                for (const Key of ["print", "warn", "wait", "info", "printidentity", "assert", "collectgarbage", "error", "getfenv", "getmetatable", "setmetatable", "ipairs", "loadfile", "loadstring", "newproxy", "next", "pairs", "pcall", "spawn", "rawequal", "rawget", "rawset", "select", "tonumber", "tostring", "type", "unpack", "xpcall", "delay", "stats", ":Remove()", ":BreakJoints()", ":GetChildren()", ":FindFirstChild()", ":FireServer()", ":InvokeServer()", ":ClearAllChildren()", ":Clone()", ":Destroy()", ":FindFirstAncestor()", ":FindFirstAncestorOfClass()", ":FindFirstAncestorWhichIsA()", ":FindFirstChildOfClass()", ":FindFirstChildWhichIsA()", ":GetDebugId()", ":GetDescendants()", ":GetFullName()", ":IsA()", ":GetPropertyChangedSignal()", ":IsAncestorOf()", ":IsDescendantOf()", ":WaitForChild()", ":Connect()", ":AncestryChanged()", ":Changed()", ":ChildAdded()", ":ChildRemoved()", ":DescendantAdded()", ":DescendantRemoving()", ":GetService()", ":GetObjects()", ":HttpGet()", ":Wait()"])
-                    AddIntellisense(Key, "Function", Key, Key.includes(":") ? Key.substring(1, Key.length) : Key);
-
-                for (const Key of ["Visible", "Color", "Transparency", "Thickness", "From", "To", "Text", "Size", "Center", "Outline", "OutlineColor", "Position", "TextBounds", "Font", "Data", "Rounding", "NumSides", "Radius", "Filled", "PointA", "PointB", "PointC", "PointD"])
-                    AddIntellisense(Key, "Property", "Property for Drawing Library", Key);
+                });
             }
-            load();
-        
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                editor.layout();
+            });
+        }
     </script>
 </body>
 
