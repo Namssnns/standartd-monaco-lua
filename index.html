@@ -2224,14 +2224,10 @@
     
     <script src="vs/loader.js"></script>
     <script type="text/javascript">
-        require.config({
-            paths: {
-                'vs': 'vs'
-            }
-        });
+
 
         let editor;
-        let Proposals = [];
+
 
        
             // Define the custom theme
@@ -2531,12 +2527,7 @@
                         break;
                 }
 
-                Proposals.push({
-                    label: l,
-                    kind: t,
-                    detail: d,
-                    insertText: i
-                });
+
             };
 
             window.Refresh = function () {
