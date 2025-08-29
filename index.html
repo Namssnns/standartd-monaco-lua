@@ -2233,18 +2233,7 @@
         let editor;
         let Proposals = [];
 
-        require(['vs/editor/editor.main'], function () {
-            function getDependencyProposals() {
-                return Proposals;
-            }
-
-            monaco.languages.registerCompletionItemProvider('lua', {
-                provideCompletionItems: function (model, position) {
-                    return getDependencyProposals();
-                },
-                triggerCharacters: ['.', ':', '"'],
-            });
-
+       
             // Define the custom theme
             monaco.editor.defineTheme('customDark', {
                 base: 'vs-dark',
